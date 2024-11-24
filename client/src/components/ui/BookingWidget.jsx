@@ -14,10 +14,16 @@ const BookingWidget = ({ place }) => {
     name: '',
     phone: '',
   });
+  const [reviewData, setReviewData] = useState({
+    reviewName: '',
+    rating: null,
+    review: '',
+  });
   const [redirect, setRedirect] = useState('');
   const { user } = useAuth();
 
   const { noOfGuests, name, phone } = bookingData;
+  const { reviewName, rating, review } = reviewData;
   const { _id: id, price } = place;
 
   useEffect(() => {
@@ -34,7 +40,6 @@ const BookingWidget = ({ place }) => {
         )
       : 0;
 
-  // handle booking form
   const handleBookingData = (e) => {
     setBookingData({
       ...bookingData,
@@ -42,13 +47,22 @@ const BookingWidget = ({ place }) => {
     });
   };
 
+  const handleReviewData = (e) => {
+    setReviewData({
+      ...reviewData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleStarClick = (star) => {
+    setReviewData({ ...reviewData, rating: star });
+  };
+
   const handleBooking = async () => {
-    // User must be signed in to book place
     if (!user) {
       return setRedirect(`/login`);
     }
 
-    // BOOKING DATA VALIDATION
     if (numberOfNights < 1) {
       return toast.error('Please select valid dates');
     } else if (noOfGuests < 1) {
@@ -73,7 +87,6 @@ const BookingWidget = ({ place }) => {
       });
 
       const bookingId = response.data.booking._id;
-
       setRedirect(`/account/bookings/${bookingId}`);
       toast('Congratulations! Enjoy your trip.');
     } catch (error) {
@@ -82,52 +95,133 @@ const BookingWidget = ({ place }) => {
     }
   };
 
+  const handleRatingSubmit = async () => {
+    if (!user) {
+      return setRedirect(`/login`);
+    }
+
+    if (!rating) {
+      return toast.error('Please provide a rating.');
+    }
+    if (!review.trim()) {
+      return toast.error('Please write a review.');
+    }
+    if (!reviewName.trim()) {
+      return toast.error('Please provide your name for the review.');
+    }
+  
+    try {
+      // Send a single review object, not an array
+      const response = await axiosInstance.post(`/places/add-review/${id}`, {
+        rating: Number(rating),  // Ensure rating is a number
+        review: review.trim(),
+        reviewName: reviewName.trim()
+      });
+  
+      if (response.data) {
+        toast.success('Thank you for your review!');
+        setReviewData({ reviewName: '', rating: null, review: '' });
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Something went wrong while submitting your review.';
+      toast.error(errorMessage);
+      console.error('Review submission error:', error);
+    }
+  };
+
   if (redirect) {
     return <Navigate to={redirect} />;
   }
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-xl">
-      <div className="text-center text-xl">
-        Price: <span className="font-semibold">₹{place.price}</span> / per night
+    <div>
+      {/* Booking Section */}
+      <div className="rounded-2xl bg-white p-4 shadow-xl">
+        <div className="text-center text-xl">
+          Price: <span className="font-semibold">₹{place.price}</span> / per night
+        </div>
+        <div className="mt-4 rounded-2xl border">
+          <div className="flex w-full">
+            <DatePickerWithRange setDateRange={setDateRange} />
+          </div>
+          <div className="border-t py-3 px-4">
+            <label>Number of guests: </label>
+            <input
+              type="number"
+              name="noOfGuests"
+              placeholder={`Max. guests: ${place.maxGuests}`}
+              min={1}
+              max={place.maxGuests}
+              value={noOfGuests}
+              onChange={handleBookingData}
+            />
+          </div>
+          <div className="border-t py-3 px-4">
+            <label>Your full name: </label>
+            <input
+              type="text"
+              name="name"
+              value={name}
+              onChange={handleBookingData}
+            />
+            <label>Phone number: </label>
+            <input
+              type="tel"
+              name="phone"
+              value={phone}
+              onChange={handleBookingData}
+            />
+          </div>
+        </div>
+        <button onClick={handleBooking} className="primary mt-4">
+          Book this place
+          {numberOfNights > 0 && <span> ₹{numberOfNights * price}</span>}
+        </button>
       </div>
-      <div className="mt-4 rounded-2xl border">
-        <div className="flex w-full ">
-          <DatePickerWithRange setDateRange={setDateRange} />
+
+      {/* Rating Section */}
+      <div className="rounded-2xl bg-white p-4 shadow-xl mt-6">
+        <div className="mb-4">
+          <label>Rate your experience: </label>
+          <div className="flex">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span
+                key={star}
+                onClick={() => handleStarClick(star)}
+                className={`cursor-pointer text-xl ${rating >= star ? 'text-yellow-500' : 'text-gray-400'}`}
+              >
+                ★
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="border-t py-3 px-4">
-          <label>Number of guests: </label>
-          <input
-            type="number"
-            name="noOfGuests"
-            placeholder={`Max. guests: ${place.maxGuests}`}
-            min={1}
-            max={place.maxGuests}
-            value={noOfGuests}
-            onChange={handleBookingData}
-          />
-        </div>
-        <div className="border-t py-3 px-4">
-          <label>Your full name: </label>
+
+        <div>
+          <label>Your Name (for review): </label>
           <input
             type="text"
-            name="name"
-            value={name}
-            onChange={handleBookingData}
-          />
-          <label>Phone number: </label>
-          <input
-            type="tel"
-            name="phone"
-            value={phone}
-            onChange={handleBookingData}
+            name="reviewName"
+            value={reviewName}
+            onChange={handleReviewData}
+            placeholder="Enter your name"
+            className="w-full p-2 border rounded"
           />
         </div>
+
+        <div>
+          <label>Write a review: </label>
+          <textarea
+            name="review"
+            value={review}
+            onChange={handleReviewData}
+            placeholder="Share your experience..."
+            className="w-full p-2 border rounded"
+          />
+        </div>
+        <button onClick={handleRatingSubmit} className="primary mt-4">
+          Submit Review
+        </button>
       </div>
-      <button onClick={handleBooking} className="primary mt-4">
-        Book this place
-        {numberOfNights > 0 && <span> ₹{numberOfNights * place.price}</span>}
-      </button>
     </div>
   );
 };
