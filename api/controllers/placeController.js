@@ -36,6 +36,34 @@ exports.addPlace = async (req, res) => {
   }
 };
 
+// Adds a review to a place
+exports.addReview = async (req, res) => {
+  try {
+    const { placeId } = req.params;
+    const { rating, review, reviewName } = req.body;
+    const userId = req.user._id;
+
+    const place = await Place.findById(placeId);
+    if (!place) {
+      return res.status(404).json({
+        message: 'Place not found',
+      });
+    }
+
+    place.reviews.push({ reviewName, rating, review, userId });
+    await place.save();
+
+    res.status(200).json({
+      message: 'Review added successfully',
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: 'Internal server error',
+      error: err,
+    });
+  }
+};
+
 // Returns user specific places
 exports.userPlaces = async (req, res) => {
   try {
@@ -64,6 +92,8 @@ exports.updatePlace = async (req, res) => {
       extraInfo,
       maxGuests,
       price,
+      addReview, // Add review controller export
+
     } = req.body;
 
     const place = await Place.findById(id);
@@ -77,6 +107,8 @@ exports.updatePlace = async (req, res) => {
         extraInfo,
         maxGuests,
         price,
+        addReview, // Add review controller export
+
       });
       await place.save();
       res.status(200).json({

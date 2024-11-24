@@ -1,3 +1,5 @@
+// models/Place.js
+
 const mongoose = require("mongoose");
 
 const placeSchema = new mongoose.Schema({
@@ -28,6 +30,15 @@ const placeSchema = new mongoose.Schema({
   price: {
     type: Number,
   },
+  reviews: [
+    {
+      reviewName: { type: String, required: true },
+      rating: { type: Number, required: true },
+      review: { type: String, required: true },
+      userId: { type: mongoose.Schema.ObjectId, ref: 'user' },
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 const Place = mongoose.model("Place", placeSchema);
